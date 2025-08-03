@@ -6,10 +6,25 @@ from langgraph.graph import StateGraph, END
 #from langgraph.checkpoint.memory import MemorySaver
 
 import os
+import json
+import re
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+def fix_quotes(text: str) -> str:
+    """Simply replace all double quotes with single quotes"""
+    return text.replace('"', "'")
+
+def safe_json_parse(response_text: str, fallback_value: Any = None) -> Any:
+    """Parse JSON from LLM response, converting single quotes to double quotes for valid JSON"""
+    try:
+        cleaned_text = re.sub(r'```(?:json)?\s*\n?', '', response_text).replace("'", '"')
+        return json.loads(re.sub(r'```\s*\n?', '', cleaned_text))
+    except (json.JSONDecodeError, AttributeError) as e:
+        print(f"JSON parsing failed: {e}")
+        return fallback_value
 
 class Epic(BaseModel):
     title: str
@@ -43,21 +58,48 @@ class SupervisorState(TypedDict):
     tasks: List[Task]
     messages: List[str]
     
-def parse_request(state: SupervisorState) -> SupervisorState:
-    llm = ChatGoogleGenerativeAI(
+# Initialize LLM with Google Generative AI
+llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.7,
+    max_tokens=8192,
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
+
+
+def parse_request(state: SupervisorState) -> SupervisorState:
+    """Parse user request and create initial epic structure"""
     prompt = f"""
-    Extract a short epic title from this request:
-    {state['user_request']}
+    Analyze this request and create an Epic structure:
+    Request: {state['user_request']}
     
-    Return only the title, nothing else.
+    Return valid JSON only with this exact structure:
+    {{
+        'title': 'Epic title here',
+        'description': 'Brief description here',
+        'features': [
+            {{'title': 'Feature 1 title', 'description': 'Feature 1 description'}},
+            {{'title': 'Feature 2 title', 'description': 'Feature 2 description'}}
+        ]
+    }}
+    
+    Use only single quotes for JSON string values. No double quotes in the response.
     """
     
     response = llm.invoke(prompt)
-    state['epic_title'] = response.content.strip()
+    parsed_data = safe_json_parse(response.content, {'title': 'Default Epic', 'description': 'Default description', 'features': []})
+    
+    features = [Feature(
+        title=fix_quotes(f.get('title', 'Default Feature')),
+        description=fix_quotes(f.get('description', 'Default description')),
+        stories=[]
+    ) for f in parsed_data.get('features', [])]
+    
+    state['epic'] = Epic(
+        title=fix_quotes(parsed_data.get('title', 'Default Epic')),
+        description=fix_quotes(parsed_data.get('description', 'Default description')),
+        features=features
+    )
     return state
 
 def generate_requirements(state: SupervisorState) -> SupervisorState:
@@ -76,7 +118,7 @@ def generate_requirements(state: SupervisorState) -> SupervisorState:
     """
     
     response = llm.invoke(prompt)
-    state['requirements_doc'] = response.content
+    state['requirements_doc'] = fix_quotes(response.content)
     return state
 
 def generate_design(state: SupervisorState) -> SupervisorState:
@@ -96,62 +138,82 @@ def generate_design(state: SupervisorState) -> SupervisorState:
     """
     
     response = llm.invoke(prompt)
-    state['design_doc'] = response.content
+    state['design_doc'] = fix_quotes(response.content)
     return state
 
 def create_stories(state: SupervisorState) -> SupervisorState:
     """Break down features into stories"""
-    stories = []
     
-    for feature in state['epic'].features:
+    def create_stories_for_feature(feature):
         prompt = f"""
         Break down this feature into 2-3 user stories:
         Feature: {feature.title}
         Description: {feature.description}
         
-        For each story provide:
-        - Title
-        - Description
-        - 3-4 acceptance criteria
-        - Suggested assignment (data_engineer, ui_developer, backend_engineer)
+        Return valid JSON array only with this exact structure:
+        [
+            {{
+                'title': 'Story title here',
+                'description': 'Story description here',
+                'acceptance_criteria': ['Criteria 1', 'Criteria 2', 'Criteria 3'],
+                'status': 'pending',
+                'priority': 'medium',
+                'assigned_to': 'data_engineer'
+            }}
+        ]
         
-        Return as JSON array.
+        Use only single quotes for JSON string values. No double quotes in the response.
+        Assignment options: data_engineer, ui_developer, backend_engineer
         """
         
         response = llm.invoke(prompt)
-        # Parse stories and add to feature
-        feature.stories = []  # Would parse from response
+        parsed_stories = safe_json_parse(response.content, [])
+        
+        feature.stories = [Story(
+            title=fix_quotes(s.get('title', 'Default Story')),
+            description=fix_quotes(s.get('description', 'Default description')),
+            acceptance_criteria=[fix_quotes(c) for c in s.get('acceptance_criteria', [])],
+            status=s.get('status', 'pending'),
+            priority=s.get('priority', 'medium'),
+            assigned_to=s.get('assigned_to', 'backend_engineer')
+        ) for s in parsed_stories]
     
+    [create_stories_for_feature(feature) for feature in state['epic'].features]
     return state
 
 def assign_tasks(state: SupervisorState) -> SupervisorState:
     """Create task assignments for agents"""
-    tasks = []
-    task_id = 0
+    all_stories = [story for feature in state['epic'].features for story in feature.stories]
     
-    for feature in state['epic'].features:
-        for story in feature.stories:
-            task = Task(
-                id=f"T{task_id:03d}",
-                type=story.assigned_to.split('_')[0],  # Extract type
-                story=story,
-                priority=task_id + 1
-            )
-            tasks.append(task)
-            task_id += 1
+    state['tasks'] = [Task(
+        id=f"T{i:03d}",
+        type=story.assigned_to.split('_')[0],
+        story=story,
+        priority=i + 1
+    ) for i, story in enumerate(all_stories)]
     
-    state['tasks'] = tasks
     return state
 
 def validate_output(state: SupervisorState) -> SupervisorState:
     """Final validation and summary"""
-    summary = f"""
-    Created Epic: {state['epic'].title}
-    Total Features: {len(state['epic'].features)}
-    Total Stories: {sum(len(f.stories) for f in state['epic'].features)}
-    Total Tasks: {len(state['tasks'])}
-    """
-    state['messages'].append(summary)
+    epic_title = fix_quotes(state['epic'].title)
+    total_features = len(state['epic'].features)
+    total_stories = sum(len(f.stories) for f in state['epic'].features)
+    total_tasks = len(state['tasks'])
+    
+    summary = f"Created Epic: {epic_title} | Total Features: {total_features} | Total Stories: {total_stories} | Total Tasks: {total_tasks}"
+    
+    task_summary = [{
+        'id': task.id,
+        'type': task.type,
+        'title': fix_quotes(task.story.title),
+        'description': fix_quotes(task.story.description),
+        'assigned_to': task.story.assigned_to,
+        'priority': task.priority,
+        'status': task.story.status
+    } for task in state['tasks']]
+    
+    state['messages'].extend([summary, f"TASK_DATA: {json.dumps(task_summary, ensure_ascii=True)}"])
     return state
 
 def create_supervisor_graph():
@@ -194,11 +256,13 @@ async def run_supervisor(user_request: str) -> Dict[str, Any]:
     config = {"configurable": {"thread_id": "main"}}
     result = await graph.ainvoke(initial_state, config)
     
+    
     return {
         "epic": result["epic"],
         "requirements": result["requirements_doc"],
         "design": result["design_doc"],
-        "tasks": result["tasks"]
+        "tasks": result["tasks"],
+        "messages": result["messages"]
     }
     
     
