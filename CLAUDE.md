@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Jacob is building a self-hosted local LLM inference stack across his Proxmox homelab — no cloud dependency. The stack targets NVIDIA consumer GPUs (8–12 GB VRAM per node) and is designed to serve coding assistance, general chat/reasoning, API serving for apps and agents, and batch inference.
+Jacob is building a self-hosted local LLM inference stack across his Proxmox homelab — no cloud dependency. The stack targets NVIDIA consumer GPUs (8–12 GB VRAM per node) and serves coding assistance, general chat/reasoning, and an OpenAI-compatible API for apps and agents.
 
-**Use cases:** Coding assistant (Python, Rust, Go, C#), general chat/reasoning, OpenAI-compatible API serving for apps/agents, batch inference.
+**Use cases:** Coding assistant (Python, Rust, Go, C#), general chat/reasoning, API serving for apps/agents, batch inference.
 
-**Current state:** Infrastructure build-out phase. The `infrastructure/` directory is the active work area.
+**Current state:** Infrastructure files are in place in `infrastructure/`. Not yet deployed.
 
-## Planned Architecture
+## Architecture
 
 ```
 Proxmox Host
@@ -20,15 +20,44 @@ Proxmox Host
         └── Open WebUI  :3000   ← Chat frontend
 ```
 
-**Multi-node expansion:** Run Ollama on each node. Place a load balancer (Olla or nginx) in front. No orchestration layer needed.
+**Multi-node expansion:** Run `docker-compose.yml` on each node. On a coordinator node, set `OLLAMA_NODES` in `.env` and run `docker-compose.multi.yml`. Open WebUI load-balances across all nodes. No orchestration layer needed.
 
 **Why Ollama over TabbyAPI or vLLM:**
 - Widest model selection (GGUF, 135K+ models on HuggingFace)
-- Works well on any consumer GPU VRAM size
-- Multi-node expansion is additive — just add nodes behind a load balancer
+- Works on any consumer GPU VRAM size — flexible for mixed hardware
+- Multi-node expansion is additive: add nodes, update `OLLAMA_NODES`
 - No Python orchestration layer to maintain
-- TabbyAPI is pre-1.0, explicitly not production-grade
+- TabbyAPI is pre-1.0 and explicitly not production-grade
 - vLLM's multi-node story (Ray) is heavier to operate and lacks GGUF support
+
+## Infrastructure Files
+
+```
+infrastructure/
+├── .env.example             # Configuration template — copy to .env
+├── docker-compose.yml       # Single-node: Ollama + Open WebUI
+├── docker-compose.multi.yml # Multi-node: Open WebUI routing to multiple Ollama nodes
+└── scripts/
+    └── pull-models.sh       # Pull recommended models by VRAM profile (8gb|12gb)
+```
+
+Ollama has no config file — all tuning is via environment variables in `.env`.
+
+**Key `.env` settings:**
+- `MODELS_PATH` — leave empty for a named Docker volume, or set an absolute host path (e.g. `/mnt/models`) for a dedicated disk
+- `OLLAMA_KEEP_ALIVE` — how long a model stays in VRAM when idle (`-1` to never unload, `5m` for shared use)
+- `OLLAMA_NODES` — semicolon-separated Ollama endpoints for multi-node (used by `docker-compose.multi.yml` only)
+
+**Common commands:**
+```bash
+cd infrastructure
+cp .env.example .env
+docker compose up -d
+docker compose down
+./scripts/pull-models.sh 8gb   # or 12gb
+docker exec ollama ollama list
+docker logs -f ollama
+```
 
 ## Model Strategy
 
@@ -45,29 +74,14 @@ Qwen 3.5 9B is the recommended daily driver — multimodal, 262K context, toggle
 
 **VRAM rule of thumb:** `VRAM ≈ (params_B × 0.56) + 1 GB overhead + KV cache`. Keep context ≤ 8K tokens on 8 GB cards, ≤ 16K on 12 GB cards.
 
-## Infrastructure Directory
-
-`infrastructure/` is where Docker Compose files, config templates, and deployment scripts will live. When building this out, follow the structure from `architecture/plan.md`:
-
-```
-infrastructure/
-├── .env.example             # Configuration template (copy to .env)
-├── docker-compose.yml       # Single-node: Ollama + Open WebUI
-├── docker-compose.multi.yml # Multi-node: Open WebUI routing to multiple Ollama nodes
-└── scripts/
-    └── pull-models.sh       # Pull recommended models by VRAM profile (8gb|12gb)
-```
-
-Ollama has no config file — all tuning is via environment variables set in `.env`.
-
 ## Key Decisions
 
-- **PCI passthrough over LXC** — full VM isolation via `vfio-pci` (UEFI/q35 machine type, `host` CPU). LXC is noted as an option for GPU sharing but not the primary target.
-- **Ollama over TabbyAPI/vLLM** — widest model selection, zero orchestration, straightforward multi-node expansion. TabbyAPI is pre-1.0 and not production-grade; vLLM lacks GGUF and needs Ray for multi-node.
-- **Multi-node via load balancer, not distributed inference** — run Ollama independently on each node, route with Olla or nginx. When a single model needs to span multiple GPUs, use llama.cpp RPC (pipeline parallelism over Ethernet) or GPUStack.
-- **IDE integration via Continue extension** — points at Ollama's OpenAI-compatible API (`http://<vm-ip>:11434`). Qwen 2.5 Coder handles FIM/autocomplete; Qwen 3.5 9B for chat.
+- **PCI passthrough over LXC** — full VM isolation via `vfio-pci` (UEFI/q35 machine type, `host` CPU). LXC is viable for GPU sharing between containers but not the primary target here.
+- **Ollama as sole inference engine** — no TabbyAPI or vLLM in the stack. Keep it simple.
+- **Multi-node via load balancer, not distributed inference** — each node runs its own model independently. When a model needs to span multiple GPUs, use llama.cpp RPC (pipeline parallelism over Ethernet) or GPUStack.
+- **IDE integration via Continue extension** — points at `http://<vm-ip>:11434`. Qwen 2.5 Coder for FIM/autocomplete, Qwen 3.5 9B for chat.
 
 ## Reference Docs
 
-- `architecture/plan.md` — Full step-by-step deployment plan (Proxmox setup, Docker config, model selection, IDE integration)
-- `architecture/high_level_context.md` — Comprehensive 2026 inference engine landscape and benchmarks
+- `architecture/plan.md` — Full deployment guide (Proxmox setup, Docker config, model selection, IDE integration)
+- `architecture/high_level_context.md` — 2026 inference engine landscape and benchmarks

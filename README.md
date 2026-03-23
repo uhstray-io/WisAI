@@ -6,17 +6,29 @@ Self-hosted local LLM inference stack for Proxmox VMs with consumer NVIDIA GPUs 
 
 | Component | Role | Port |
 |---|---|---|
-| **Ollama** | Primary inference engine | 11434 |
+| **Ollama** | Primary inference engine (OpenAI-compatible API) | 11434 |
 | **Open WebUI** | Chat frontend | 3000 |
 
 **Why Ollama?** Widest model selection (GGUF, 135K+ models), works on any consumer GPU, and multi-node expansion requires no orchestration layer — just run Ollama on each node behind a load balancer.
 
 ## Hardware Target
 
-- Proxmox host with one or more NVIDIA consumer GPUs (GTX 10xx or newer)
-- 8–12 GB VRAM per GPU
-- GPU exposed to a Ubuntu Server VM via PCI passthrough (`vfio-pci`)
+- Proxmox host with NVIDIA consumer GPU (GTX 10xx or newer)
+- 8–12 GB VRAM per node
+- Ubuntu Server VM with full PCI GPU passthrough (`vfio-pci`, UEFI/q35)
 - Docker + NVIDIA Container Toolkit inside the VM
+
+## Quick Start
+
+```bash
+cd infrastructure
+cp .env.example .env          # configure ports, GPU count, model path
+docker compose up -d          # start Ollama + Open WebUI
+./scripts/pull-models.sh 8gb  # pull recommended models (8gb or 12gb profile)
+```
+
+Open WebUI is available at `http://<vm-ip>:3000`.
+Ollama API at `http://<vm-ip>:11434` (OpenAI-compatible).
 
 ## Architecture
 
@@ -28,23 +40,30 @@ Proxmox Host
         └── Open WebUI  :3000
 ```
 
-Ollama exposes an OpenAI-compatible API, so any IDE extension that supports a custom OpenAI endpoint works out of the box (Continue.dev, avante.nvim, CodeGPT, etc.).
-
 ## Model Selection
 
-**8 GB VRAM**
-- Daily driver: Qwen 3.5 9B @ Q4_K_M (~6.6 GB)
-- Coding/FIM: Qwen 2.5 Coder 7B @ Q4_K_M (~5.5 GB)
-- Reasoning: DeepSeek R1 8B @ Q4_K_M (~5.5 GB)
+| Role | 8 GB VRAM | 12 GB VRAM |
+|---|---|---|
+| Coding / FIM | Qwen 2.5 Coder 7B (~5.5 GB) | Qwen 2.5 Coder 14B (~9 GB) |
+| Daily driver | Qwen 3.5 9B (~6.6 GB) | Qwen 3.5 9B @ Q6_K (~8.5 GB) |
+| Deep reasoning | DeepSeek R1 8B (~5.5 GB) | DeepSeek R1 8B (~5.5 GB) |
+| Chat alternative | — | Gemma 3 12B (~8 GB) |
 
-**12 GB VRAM**
-- Coding: Qwen 2.5 Coder 14B @ Q4_K_M (~9 GB)
-- Chat: Gemma 3 12B @ Q4_K_M (~8 GB)
+## IDE Integration
 
-## Status
+Any extension supporting a custom OpenAI endpoint works (Continue.dev, avante.nvim, CodeGPT):
 
-Early planning phase. See [`architecture/plan.md`](architecture/plan.md) for the full deployment guide and [`architecture/high_level_context.md`](architecture/high_level_context.md) for the 2026 inference engine landscape.
+```json
+{
+  "apiBase": "http://<vm-ip>:11434",
+  "provider": "ollama"
+}
+```
 
-## Multi-GPU Expansion
+Use Qwen 2.5 Coder for FIM/autocomplete and Qwen 3.5 9B for chat.
 
-When ready to combine GPUs across Proxmox nodes, use **llama.cpp RPC** (simplest) or **GPUStack** (management UI). Two 12 GB GPUs combined unlock 27–30B models at Q4_K_M. Use pipeline parallelism over standard Ethernet — tensor parallelism requires 100+ Gbps interconnect.
+## Multi-Node Expansion
+
+Run `docker-compose.yml` on each GPU node. On the coordinator node, configure `OLLAMA_NODES` in `.env` and start `docker-compose.multi.yml` — Open WebUI will load-balance across all nodes.
+
+When a single model needs to span multiple GPUs, use **llama.cpp RPC** (pipeline parallelism over standard Ethernet) or **GPUStack** (web UI for multi-node management).
