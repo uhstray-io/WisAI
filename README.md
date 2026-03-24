@@ -32,6 +32,8 @@ Ollama API at `http://<vm-ip>:11434` (OpenAI-compatible).
 
 **Using Podman on Windows?** One-time GPU setup is required — see [`docs/podman-gpu-windows.md`](docs/podman-gpu-windows.md).
 
+For full usage instructions including the one-line prompt command, see [`docs/running.md`](docs/running.md).
+
 ## Architecture
 
 ```

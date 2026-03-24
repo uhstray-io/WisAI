@@ -87,4 +87,5 @@ Qwen 3.5 9B is the recommended daily driver — multimodal, 262K context, toggle
 
 - `architecture/plan.md` — Full deployment guide (Proxmox setup, Docker config, model selection, IDE integration)
 - `architecture/high_level_context.md` — 2026 inference engine landscape and benchmarks
+- `docs/running.md` — Step-by-step guide to starting the stack, pulling models, and using the prompt script
 - `docs/podman-gpu-windows.md` — GPU passthrough setup for Podman on Windows/WSL2 (one-time setup, CDI-based)

@@ -2,3 +2,4 @@
 *_logs/
 *__pycache__/
 .env
+infrastructure/NUL

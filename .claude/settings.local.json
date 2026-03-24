@@ -5,7 +5,8 @@
       "Bash(podman run:*)",
       "Bash(podman inspect:*)",
       "Bash(podman compose:*)",
-      "Bash(podman logs:*)"
+      "Bash(podman logs:*)",
+      "Bash(podman exec:*)"
     ]
   }
 }
