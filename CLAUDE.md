@@ -8,7 +8,7 @@ Jacob is building a self-hosted local LLM inference stack across his Proxmox hom
 
 **Use cases:** Coding assistant (Python, Rust, Go, C#), general chat/reasoning, API serving for apps/agents, batch inference.
 
-**Current state:** Infrastructure files are in place in `infrastructure/`. Not yet deployed.
+**Current state:** Infrastructure files are in place and tested locally on Windows (Podman + RTX 3080, ~107 tok/s confirmed). Not yet deployed to Proxmox.
 
 ## Architecture
 
@@ -48,16 +48,18 @@ Ollama has no config file — all tuning is via environment variables in `.env`.
 - `OLLAMA_KEEP_ALIVE` — how long a model stays in VRAM when idle (`-1` to never unload, `5m` for shared use)
 - `OLLAMA_NODES` — semicolon-separated Ollama endpoints for multi-node (used by `docker-compose.multi.yml` only)
 
-**Common commands:**
+**Common commands** (use `docker` or `podman` interchangeably — `pull-models.sh` auto-detects):
 ```bash
 cd infrastructure
 cp .env.example .env
-docker compose up -d
+docker compose up -d          # or: podman compose up -d
 docker compose down
-./scripts/pull-models.sh 8gb   # or 12gb
+./scripts/pull-models.sh 8gb  # or 12gb
 docker exec ollama ollama list
 docker logs -f ollama
 ```
+
+**Podman on Windows:** Requires one-time GPU setup before `podman compose up -d` will use the GPU. See `docs/podman-gpu-windows.md`.
 
 ## Model Strategy
 
@@ -85,3 +87,4 @@ Qwen 3.5 9B is the recommended daily driver — multimodal, 262K context, toggle
 
 - `architecture/plan.md` — Full deployment guide (Proxmox setup, Docker config, model selection, IDE integration)
 - `architecture/high_level_context.md` — 2026 inference engine landscape and benchmarks
+- `docs/podman-gpu-windows.md` — GPU passthrough setup for Podman on Windows/WSL2 (one-time setup, CDI-based)

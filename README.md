@@ -22,13 +22,15 @@ Self-hosted local LLM inference stack for Proxmox VMs with consumer NVIDIA GPUs 
 
 ```bash
 cd infrastructure
-cp .env.example .env          # configure ports, GPU count, model path
-docker compose up -d          # start Ollama + Open WebUI
-./scripts/pull-models.sh 8gb  # pull recommended models (8gb or 12gb profile)
+cp .env.example .env                    # configure ports, GPU count, model path
+docker compose up -d                    # start Ollama + Open WebUI (or: podman compose up -d)
+./scripts/pull-models.sh 8gb            # pull recommended models (8gb or 12gb profile)
 ```
 
 Open WebUI is available at `http://<vm-ip>:3000`.
 Ollama API at `http://<vm-ip>:11434` (OpenAI-compatible).
+
+**Using Podman on Windows?** One-time GPU setup is required — see [`docs/podman-gpu-windows.md`](docs/podman-gpu-windows.md).
 
 ## Architecture
 

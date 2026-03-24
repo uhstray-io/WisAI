@@ -21,6 +21,7 @@ services:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
       - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+    # Docker + NVIDIA Container Toolkit (Linux/Proxmox target)
     deploy:
       resources:
         reservations:
@@ -28,6 +29,9 @@ services:
             - driver: nvidia
               count: ${GPU_COUNT:-1}
               capabilities: [gpu]
+    # Podman + CDI (Windows/WSL2 — requires nvidia-container-toolkit + CDI spec in Podman machine)
+    devices:
+      - nvidia.com/gpu=all
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main

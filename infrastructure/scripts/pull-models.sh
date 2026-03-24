@@ -12,9 +12,18 @@ set -euo pipefail
 
 CONTAINER="${OLLAMA_CONTAINER:-ollama}"
 
+# Use podman if docker is not available
+if command -v docker &>/dev/null; then
+  RUNTIME="docker"
+elif command -v podman &>/dev/null; then
+  RUNTIME="podman"
+else
+  echo "Error: neither docker nor podman found in PATH" && exit 1
+fi
+
 pull() {
   echo ">>> Pulling $1"
-  docker exec "$CONTAINER" ollama pull "$1"
+  "$RUNTIME" exec "$CONTAINER" ollama pull "$1"
 }
 
 usage() {
@@ -43,4 +52,4 @@ esac
 
 echo ""
 echo "Done. Loaded models:"
-docker exec "$CONTAINER" ollama list
+"$RUNTIME" exec "$CONTAINER" ollama list
