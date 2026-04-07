@@ -6,7 +6,8 @@
       "Bash(podman inspect:*)",
       "Bash(podman compose:*)",
       "Bash(podman logs:*)",
-      "Bash(podman exec:*)"
+      "Bash(podman exec:*)",
+      "Bash(curl -s \"https://ollama.com/library/*\")"
     ]
   }
 }
