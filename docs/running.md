@@ -43,11 +43,15 @@ On first run, no models are loaded. Pull the set for your GPU:
 ```bash
 ./scripts/pull-models.sh 8gb   # RTX 3060/3070/4060 Ti (8–10 GB VRAM)
 ./scripts/pull-models.sh 12gb  # RTX 3060 12GB/3080/4070 (12 GB VRAM)
+./scripts/pull-models.sh 16gb  # RTX 4060 Ti 16GB/4080/5080 (16 GB VRAM)
 ```
 
+Models are sourced from HuggingFace (bartowski, unsloth) for the best quantization at each tier — Ollama's library only ships Q4_K_M and Q8_0, but Q5_K_M and Q6_K are the sweet spot for most GPUs.
+
 This pulls:
-- **8gb:** `qwen2.5-coder:7b`, `qwen3.5:9b`, `deepseek-r1:8b`
-- **12gb:** above plus `qwen2.5-coder:14b`, `gemma3:12b`
+- **8gb** (Q5_K_M): Qwen 2.5.1 Coder 7B, Qwen 3.5 9B (Q4), DeepSeek R1 0528 8B
+- **12gb** (Q5_K_M / Q6_K): Qwen 2.5 Coder 14B, Qwen 3.5 9B, DeepSeek R1 0528 8B, Gemma 3 12B
+- **16gb** (Q6_K / Q8_0): Qwen 2.5 Coder 14B, Qwen 3.5 9B, DeepSeek R1 14B, Phi-4 14B
 
 Check what's available at any time:
 

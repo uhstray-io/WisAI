@@ -1,6 +1,6 @@
 # WisAI
 
-Self-hosted local LLM inference stack for Proxmox VMs with consumer NVIDIA GPUs (8–12 GB VRAM). Designed for coding assistance, general chat, and API serving — no cloud dependency.
+Self-hosted local LLM inference stack for Proxmox VMs with consumer NVIDIA GPUs (8–16 GB VRAM). Designed for coding assistance, general chat, and API serving — no cloud dependency.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Self-hosted local LLM inference stack for Proxmox VMs with consumer NVIDIA GPUs 
 ## Hardware Target
 
 - Proxmox host with NVIDIA consumer GPU (GTX 10xx or newer)
-- 8–12 GB VRAM per node
+- 8–16 GB VRAM per node
 - Ubuntu Server VM with full PCI GPU passthrough (`vfio-pci`, UEFI/q35)
 - Docker + NVIDIA Container Toolkit inside the VM
 
@@ -24,7 +24,7 @@ Self-hosted local LLM inference stack for Proxmox VMs with consumer NVIDIA GPUs 
 cd infrastructure
 cp .env.example .env                    # configure ports, GPU count, model path
 docker compose up -d                    # start Ollama + Open WebUI (or: podman compose up -d)
-./scripts/pull-models.sh 8gb            # pull recommended models (8gb or 12gb profile)
+./scripts/pull-models.sh 8gb            # pull recommended models (8gb, 12gb, or 16gb)
 ```
 
 Open WebUI is available at `http://<vm-ip>:3000`.
@@ -46,12 +46,14 @@ Proxmox Host
 
 ## Model Selection
 
-| Role | 8 GB VRAM | 12 GB VRAM |
-|---|---|---|
-| Coding / FIM | Qwen 2.5 Coder 7B (~5.5 GB) | Qwen 2.5 Coder 14B (~9 GB) |
-| Daily driver | Qwen 3.5 9B (~6.6 GB) | Qwen 3.5 9B @ Q6_K (~8.5 GB) |
-| Deep reasoning | DeepSeek R1 8B (~5.5 GB) | DeepSeek R1 8B (~5.5 GB) |
-| Chat alternative | — | Gemma 3 12B (~8 GB) |
+| Role | 8 GB VRAM | 12 GB VRAM | 16 GB VRAM |
+|---|---|---|---|
+| Coding / FIM | Qwen 2.5.1 Coder 7B Q5_K_M (~5.4 GB) | Qwen 2.5 Coder 14B Q5_K_M (~10.5 GB) | Qwen 2.5 Coder 14B Q6_K (~12.1 GB) |
+| Daily driver | Qwen 3.5 9B Q4_K_M (~5.7 GB) | Qwen 3.5 9B Q6_K (~7.7 GB) | Qwen 3.5 9B Q8_0 (~9.6 GB) |
+| Deep reasoning | DeepSeek R1 0528 8B Q5_K_M (~5.9 GB) | DeepSeek R1 0528 8B Q6_K (~6.7 GB) | DeepSeek R1 14B Q6_K (~12.1 GB) |
+| Chat alternative | — | Gemma 3 12B Q5_K_M (~8.4 GB) | Phi-4 14B Q6_K (~12.0 GB) |
+
+Models are sourced from HuggingFace (bartowski, unsloth) for optimal quantization at each tier. See [`docs/running.md`](docs/running.md) for pull commands.
 
 ## IDE Integration
 

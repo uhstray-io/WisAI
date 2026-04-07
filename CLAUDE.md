@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Jacob is building a self-hosted local LLM inference stack across his Proxmox homelab — no cloud dependency. The stack targets NVIDIA consumer GPUs (8–12 GB VRAM per node) and serves coding assistance, general chat/reasoning, and an OpenAI-compatible API for apps and agents.
+Jacob is building a self-hosted local LLM inference stack across his Proxmox homelab — no cloud dependency. The stack targets NVIDIA consumer GPUs (8–16 GB VRAM per node) and serves coding assistance, general chat/reasoning, and an OpenAI-compatible API for apps and agents.
 
 **Use cases:** Coding assistant (Python, Rust, Go, C#), general chat/reasoning, API serving for apps/agents, batch inference.
 
@@ -38,7 +38,7 @@ infrastructure/
 ├── docker-compose.yml       # Single-node: Ollama + Open WebUI
 ├── docker-compose.multi.yml # Multi-node: Open WebUI routing to multiple Ollama nodes
 └── scripts/
-    └── pull-models.sh       # Pull recommended models by VRAM profile (8gb|12gb)
+    └── pull-models.sh       # Pull recommended models by VRAM profile (8gb|12gb|16gb)
 ```
 
 Ollama has no config file — all tuning is via environment variables in `.env`.
@@ -54,7 +54,7 @@ cd infrastructure
 cp .env.example .env
 docker compose up -d          # or: podman compose up -d
 docker compose down
-./scripts/pull-models.sh 8gb  # or 12gb
+./scripts/pull-models.sh 8gb  # or 12gb, 16gb
 docker exec ollama ollama list
 docker logs -f ollama
 ```
@@ -63,18 +63,18 @@ docker logs -f ollama
 
 ## Model Strategy
 
-| Role | 8 GB VRAM | 12 GB VRAM |
-|---|---|---|
-| Coding / autocomplete (FIM) | Qwen 2.5 Coder 7B | Qwen 2.5 Coder 14B |
-| Daily driver / all-rounder | Qwen 3.5 9B | Qwen 3.5 9B @ Q6_K |
-| Deep reasoning | DeepSeek R1 0528 Qwen3 8B | DeepSeek R1 0528 Qwen3 8B |
-| Chat alternative | — | Gemma 3 12B or Phi-4 14B |
+| Role | 8 GB VRAM | 12 GB VRAM | 16 GB VRAM |
+|---|---|---|---|
+| Coding / autocomplete (FIM) | Qwen 2.5.1 Coder 7B @ Q5_K_M (~5.4 GB) | Qwen 2.5 Coder 14B @ Q5_K_M (~10.5 GB) | Qwen 2.5 Coder 14B @ Q6_K (~12.1 GB) |
+| Daily driver / all-rounder | Qwen 3.5 9B @ Q4_K_M (~5.7 GB) | Qwen 3.5 9B @ Q6_K (~7.7 GB) | Qwen 3.5 9B @ Q8_0 (~9.6 GB) |
+| Deep reasoning | DeepSeek R1 0528 Qwen3 8B @ Q5_K_M (~5.9 GB) | DeepSeek R1 0528 Qwen3 8B @ Q6_K (~6.7 GB) | DeepSeek R1 14B @ Q6_K (~12.1 GB) |
+| Chat alternative | — | Gemma 3 12B @ Q5_K_M (~8.4 GB) | Phi-4 14B @ Q6_K (~12.0 GB) |
 
 Qwen 3.5 9B is the recommended daily driver — multimodal, 262K context, toggleable thinking mode.
 
-**Quantization baseline:** GGUF Q4_K_M. Use Q6_K or higher for non-English languages (4-bit drops multilingual quality to 90–95%).
+**Quantization strategy:** Each VRAM tier uses the highest quant that fits with room for KV cache. Ollama's library only ships Q4_K_M and Q8_0 — the pull script sources Q5_K_M and Q6_K from HuggingFace (bartowski, unsloth) via `hf.co/` pulls. Bartowski uses imatrix quantization which preserves critical weight quality better than standard quants.
 
-**VRAM rule of thumb:** `VRAM ≈ (params_B × 0.56) + 1 GB overhead + KV cache`. Keep context ≤ 8K tokens on 8 GB cards, ≤ 16K on 12 GB cards.
+**VRAM rule of thumb:** `VRAM ≈ (params_B × 0.56) + 1 GB overhead + KV cache`. Keep context ≤ 8K tokens on 8 GB cards, ≤ 16K on 12 GB cards, ≤ 32K on 16 GB cards.
 
 ## Key Decisions
 
