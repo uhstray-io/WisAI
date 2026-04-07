@@ -20,12 +20,12 @@ Proxmox Host
         └── Open WebUI  :3000   ← Chat frontend
 ```
 
-**Multi-node expansion:** Run `docker-compose.yml` on each node. On a coordinator node, set `OLLAMA_NODES` in `.env` and run `docker-compose.multi.yml`. Open WebUI load-balances across all nodes. No orchestration layer needed.
+**Multi-node expansion:** Run `docker-compose.yml` on each node. On a coordinator node, set `OLLAMA_NODES` in `.env` (semicolon-separated endpoints) and run `docker-compose.multi.yml`. Open WebUI uses `OLLAMA_BASE_URLS` (plural) to merge model lists and randomly distribute requests across backends. No orchestration layer needed.
 
 **Why Ollama over TabbyAPI or vLLM:**
 - Widest model selection (GGUF, 135K+ models on HuggingFace)
 - Works on any consumer GPU VRAM size — flexible for mixed hardware
-- Multi-node expansion is additive: add nodes, update `OLLAMA_NODES`
+- Multi-node expansion is additive: add endpoints to `OLLAMA_NODES` and restart
 - No Python orchestration layer to maintain
 - TabbyAPI is pre-1.0 and explicitly not production-grade
 - vLLM's multi-node story (Ray) is heavier to operate and lacks GGUF support
@@ -46,7 +46,7 @@ Ollama has no config file — all tuning is via environment variables in `.env`.
 **Key `.env` settings:**
 - `MODELS_PATH` — leave empty for a named Docker volume, or set an absolute host path (e.g. `/mnt/models`) for a dedicated disk
 - `OLLAMA_KEEP_ALIVE` — how long a model stays in VRAM when idle (`-1` to never unload, `5m` for shared use)
-- `OLLAMA_NODES` — semicolon-separated Ollama endpoints for multi-node (used by `docker-compose.multi.yml` only)
+- `OLLAMA_NODES` — semicolon-separated Ollama endpoints for multi-node (used by `docker-compose.multi.yml` only, maps to Open WebUI's `OLLAMA_BASE_URLS`)
 
 **Common commands** (use `docker` or `podman` interchangeably — `pull-models.sh` auto-detects):
 ```bash

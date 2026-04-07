@@ -4,14 +4,14 @@
 # Deploy THIS file on a coordinator node (or any node) to run Open WebUI
 # with load balancing across all nodes.
 #
-# Set OLLAMA_NODES in .env to your node IPs before starting:
+# Set OLLAMA_NODES in .env to all your node endpoints (semicolon-separated):
 #   OLLAMA_NODES=http://192.168.1.10:11434;http://192.168.1.11:11434
 #
 # Usage (coordinator node only):
 #   docker compose -f docker-compose.multi.yml up -d
 #
-# Open WebUI distributes requests across all configured Ollama backends.
-# Each node runs its own model independently — no shared VRAM.
+# Open WebUI randomly selects a backend that has the requested model for
+# each request. It merges model lists from all configured endpoints.
 
 services:
   open-webui:
@@ -23,8 +23,9 @@ services:
     volumes:
       - open-webui-data:/app/backend/data
     environment:
-      # Semicolon-separated Ollama endpoints — Open WebUI round-robins across them.
-      - OLLAMA_BASE_URL=${OLLAMA_NODES}
+      # OLLAMA_BASE_URLS (plural) accepts semicolon-separated endpoints.
+      # Open WebUI merges model lists and randomly picks a backend per request.
+      - OLLAMA_BASE_URLS=${OLLAMA_NODES}
 
 volumes:
   open-webui-data:

@@ -68,6 +68,6 @@ Use Qwen 2.5 Coder for FIM/autocomplete and Qwen 3.5 9B for chat.
 
 ## Multi-Node Expansion
 
-Run `docker-compose.yml` on each GPU node. On the coordinator node, configure `OLLAMA_NODES` in `.env` and start `docker-compose.multi.yml` — Open WebUI will load-balance across all nodes.
+Run `docker-compose.yml` on each GPU node. On the coordinator node, set `OLLAMA_NODES` in `.env` (semicolon-separated endpoints) and start `docker-compose.multi.yml`. Open WebUI merges model lists from all backends and randomly distributes requests across nodes that have the requested model.
 
 When a single model needs to span multiple GPUs, use **llama.cpp RPC** (pipeline parallelism over standard Ethernet) or **GPUStack** (web UI for multi-node management).
