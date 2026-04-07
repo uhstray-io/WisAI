@@ -41,15 +41,6 @@ fi
 
 curl -s "$HOST/api/generate" \
   -H "Content-Type: application/json" \
-  -d "$(printf '{"model":"%s","prompt":"%s","stream":true}' \
-    "$MODEL" \
-    "$(printf '%s' "$PROMPT" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/g' | tr -d '\n' | sed 's/\\n$//')")" \
-  | python -c "
-import sys, json
-for line in sys.stdin:
-    try:
-        d = json.loads(line)
-        print(d.get('response',''), end='', flush=True)
-    except: pass
-print()
-"
+  -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" \
+    '{model: $model, prompt: $prompt, stream: true}')" \
+  | jq -r --unbuffered '.response // empty'

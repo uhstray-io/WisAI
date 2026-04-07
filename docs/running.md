@@ -4,6 +4,7 @@
 
 - Docker (Linux/Proxmox) or Podman (Windows) installed
 - NVIDIA GPU with drivers installed
+- [`jq`](https://jqlang.github.io/jq/download/) installed (used by `scripts/prompt.sh`)
 - **Podman on Windows only:** complete the one-time GPU setup in [`docs/podman-gpu-windows.md`](podman-gpu-windows.md)
 
 ---
