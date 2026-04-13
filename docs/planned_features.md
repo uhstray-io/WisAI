@@ -6,7 +6,7 @@ Practical changes to make the WisAI stack more reliable, correct, and production
 
 ## 1. Add container health checks
 
-**Status:** Not started
+**Status:** Done
 
 **Why:** `depends_on: ollama` only waits for the container process to start, not for Ollama to be listening on its port. On slower hardware or cold starts (model loading), Open WebUI can start before Ollama is ready, causing connection errors in the UI until the user manually refreshes.
 
@@ -32,7 +32,7 @@ Practical changes to make the WisAI stack more reliable, correct, and production
 
 ## 2. Pin container image versions
 
-**Status:** Not started
+**Status:** Done
 
 **Why:** `ollama/ollama:latest` and `ghcr.io/open-webui/open-webui:main` will silently change on every `docker compose pull` or fresh deploy. A bad upstream release could break the stack with no rollback path. Pinning gives reproducible deploys and intentional upgrades.
 

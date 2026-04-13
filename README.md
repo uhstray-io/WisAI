@@ -9,6 +9,8 @@ Self-hosted local LLM inference stack for Proxmox VMs with consumer NVIDIA GPUs 
 | **Ollama** | Primary inference engine (OpenAI-compatible API) | 11434 |
 | **Open WebUI** | Chat frontend | 3000 |
 
+**Pinned versions:** `ollama/ollama:0.20.6` · `open-webui:v0.8.12` (last updated 2026-04-13). To upgrade: bump the tags in `docker-compose.yml`, then `docker compose pull && docker compose up -d`.
+
 **Why Ollama?** Widest model selection (GGUF, 135K+ models), works on any consumer GPU, and multi-node expansion requires no orchestration layer — just run Ollama on each node behind a load balancer.
 
 ## Hardware Target
